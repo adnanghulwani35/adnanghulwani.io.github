@@ -1,0 +1,1394 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <base target="_self">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>IMess - Pesan Instan</title>
+    <meta name="description" content="IMess - Aplikasi pesan instan modern dengan fitur chat real-time">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/all.min.css">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: "#3B82F6",
+                        "primary-dark": "#1D4ED8",
+                        secondary: "#10B981",
+                        "secondary-dark": "#059669",
+                        accent: "#8B5CF6",
+                        "accent-dark": "#7C3AED",
+                        background: "#F9FAFB",
+                        "background-dark": "#1F2937",
+                        surface: "#FFFFFF",
+                        "surface-dark": "#374151",
+                        text: "#111827",
+                        "text-light": "#6B7280",
+                        "text-dark": "#F9FAFB"
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'system-ui', 'sans-serif'],
+                        mono: ['Fira Code', 'monospace']
+                    },
+                    animation: {
+                        'pulse-slow': 'pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+                        'slide-in': 'slideIn 0.3s ease-out',
+                        'fade-in': 'fadeIn 0.5s ease-out'
+                    },
+                    keyframes: {
+                        slideIn: {
+                            '0%': { transform: 'translateX(-100%)', opacity: '0' },
+                            '100%': { transform: 'translateX(0)', opacity: '1' }
+                        },
+                        fadeIn: {
+                            '0%': { opacity: '0' },
+                            '100%': { opacity: '1' }
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Fira+Code:wght@400;500&display=swap');
+        
+        .scrollbar-thin {
+            scrollbar-width: thin;
+            scrollbar-color: #D1D5DB #F3F4F6;
+        }
+        
+        .scrollbar-thin::-webkit-scrollbar {
+            width: 6px;
+        }
+        
+        .scrollbar-thin::-webkit-scrollbar-track {
+            background: #F3F4F6;
+            border-radius: 3px;
+        }
+        
+        .scrollbar-thin::-webkit-scrollbar-thumb {
+            background: #D1D5DB;
+            border-radius: 3px;
+        }
+        
+        .scrollbar-thin::-webkit-scrollbar-thumb:hover {
+            background: #9CA3AF;
+        }
+        
+        .message-bubble {
+            max-width: 70%;
+            word-wrap: break-word;
+        }
+        
+        .typing-indicator {
+            display: inline-flex;
+            align-items: center;
+        }
+        
+        .typing-indicator span {
+            height: 8px;
+            width: 8px;
+            margin: 0 2px;
+            background-color: #9CA3AF;
+            border-radius: 50%;
+            display: inline-block;
+            animation: typing 1.4s infinite ease-in-out both;
+        }
+        
+        .typing-indicator span:nth-child(1) {
+            animation-delay: -0.32s;
+        }
+        
+        .typing-indicator span:nth-child(2) {
+            animation-delay: -0.16s;
+        }
+        
+        @keyframes typing {
+            0%, 80%, 100% { 
+                transform: scale(0);
+                opacity: 0.5;
+            }
+            40% { 
+                transform: scale(1);
+                opacity: 1;
+            }
+        }
+        
+        .online-status {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            position: absolute;
+            bottom: 0;
+            right: 0;
+            border: 2px solid white;
+        }
+        
+        .online-status.online {
+            background-color: #10B981;
+        }
+        
+        .online-status.away {
+            background-color: #F59E0B;
+        }
+        
+        .online-status.offline {
+            background-color: #9CA3AF;
+        }
+        
+        .message-status {
+            font-size: 12px;
+            margin-left: 4px;
+        }
+        
+        .message-status.sent {
+            color: #9CA3AF;
+        }
+        
+        .message-status.delivered {
+            color: #3B82F6;
+        }
+        
+        .message-status.read {
+            color: #10B981;
+        }
+        
+        @media (max-width: 768px) {
+            .chat-container {
+                height: calc(100vh - 140px);
+            }
+            
+            .contacts-sidebar {
+                position: fixed;
+                left: -100%;
+                top: 0;
+                width: 100%;
+                height: 100%;
+                z-index: 50;
+                transition: left 0.3s ease;
+            }
+            
+            .contacts-sidebar.active {
+                left: 0;
+            }
+            
+            .overlay {
+                position: fixed;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 100%;
+                background-color: rgba(0, 0, 0, 0.5);
+                z-index: 40;
+                display: none;
+            }
+            
+            .overlay.active {
+                display: block;
+            }
+        }
+        
+        .group-avatar {
+            position: relative;
+            width: 48px;
+            height: 48px;
+        }
+        
+        .group-avatar img {
+            position: absolute;
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            border: 2px solid white;
+        }
+        
+        .group-avatar img:nth-child(1) {
+            top: 0;
+            left: 0;
+            z-index: 3;
+        }
+        
+        .group-avatar img:nth-child(2) {
+            bottom: 0;
+            right: 0;
+            z-index: 2;
+        }
+        
+        .group-avatar img:nth-child(3) {
+            top: 8px;
+            left: 16px;
+            z-index: 1;
+        }
+    </style>
+</head>
+<body class="min-h-screen bg-background font-sans text-text">
+    <!-- Overlay untuk sidebar mobile -->
+    <div class="overlay" id="overlay"></div>
+    
+    <!-- Kontainer Utama -->
+    <div class="flex flex-col h-screen">
+        <!-- Header -->
+        <header class="bg-surface shadow-sm border-b border-gray-200">
+            <div class="container mx-auto px-4">
+                <div class="flex items-center justify-between py-3">
+                    <!-- Logo dan Nama Aplikasi -->
+                    <div class="flex items-center space-x-3">
+                        <button id="menuToggle" class="md:hidden text-text-light hover:text-primary focus:outline-none">
+                            <i class="fas fa-bars text-xl"></i>
+                        </button>
+                        <div class="flex items-center space-x-2">
+                            <div class="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
+                                <i class="fas fa-comment-alt text-white"></i>
+                            </div>
+                            <h1 class="text-xl font-bold text-text">IMess</h1>
+                        </div>
+                    </div>
+                    
+                    <!-- Bar Pencarian -->
+                    <div class="hidden md:flex flex-1 max-w-md mx-4">
+                        <div class="relative w-full">
+                            <input 
+                                type="text" 
+                                placeholder="Cari pesan, kontak..." 
+                                class="w-full px-4 py-2 pl-10 bg-gray-100 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+                                id="searchInput"
+                            >
+                            <i class="fas fa-search absolute left-3 top-3 text-gray-400"></i>
+                        </div>
+                    </div>
+                    
+                    <!-- Aksi Pengguna -->
+                    <div class="flex items-center space-x-4">
+                        <!-- Tombol Pencarian Mobile -->
+                        <button class="md:hidden text-text-light hover:text-primary" id="mobileSearchBtn">
+                            <i class="fas fa-search text-xl"></i>
+                        </button>
+                        
+                        <!-- Notifikasi -->
+                        <div class="relative">
+                            <button class="text-text-light hover:text-primary relative" id="notificationsBtn">
+                                <i class="fas fa-bell text-xl"></i>
+                                <span class="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">3</span>
+                            </button>
+                            <!-- Dropdown Notifikasi -->
+                            <div class="absolute right-0 mt-2 w-80 bg-surface shadow-lg rounded-lg border border-gray-200 hidden z-10" id="notificationsDropdown">
+                                <div class="p-4 border-b border-gray-200">
+                                    <h3 class="font-semibold text-text">Notifikasi</h3>
+                                </div>
+                                <div class="max-h-64 overflow-y-auto">
+                                    <!-- Item notifikasi akan diisi oleh JS -->
+                                </div>
+                                <div class="p-3 border-t border-gray-200 text-center">
+                                    <a href="#" class="text-primary hover:text-primary-dark text-sm font-medium">Lihat Semua</a>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Profil Pengguna -->
+                        <div class="relative">
+                            <button class="flex items-center space-x-2 focus:outline-none" id="profileBtn">
+                                <div class="relative">
+                                    <img 
+                                        src="https://i.pravatar.cc/40?img=1" 
+                                        alt="Profil pengguna" 
+                                        class="w-8 h-8 rounded-full"
+                                    >
+                                    <div class="online-status online"></div>
+                                </div>
+                                <span class="hidden md:inline font-medium text-text">Budi Santoso</span>
+                                <i class="fas fa-chevron-down text-text-light text-sm"></i>
+                            </button>
+                            <!-- Dropdown Profil -->
+                            <div class="absolute right-0 mt-2 w-48 bg-surface shadow-lg rounded-lg border border-gray-200 hidden z-10" id="profileDropdown">
+                                <div class="py-2">
+                                    <a href="#" class="flex items-center px-4 py-2 text-text hover:bg-gray-100">
+                                        <i class="fas fa-user-circle mr-3 text-text-light"></i>
+                                        <span>Profil Saya</span>
+                                    </a>
+                                    <a href="#" class="flex items-center px-4 py-2 text-text hover:bg-gray-100">
+                                        <i class="fas fa-cog mr-3 text-text-light"></i>
+                                        <span>Pengaturan</span>
+                                    </a>
+                                    <a href="#" class="flex items-center px-4 py-2 text-text hover:bg-gray-100">
+                                        <i class="fas fa-moon mr-3 text-text-light"></i>
+                                        <span>Mode Gelap</span>
+                                    </a>
+                                    <div class="border-t border-gray-200 my-1"></div>
+                                    <a href="#" class="flex items-center px-4 py-2 text-red-600 hover:bg-gray-100">
+                                        <i class="fas fa-sign-out-alt mr-3"></i>
+                                        <span>Keluar</span>
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Bar Pencarian Mobile -->
+                <div class="md:hidden py-3 hidden" id="mobileSearchBar">
+                    <div class="relative">
+                        <input 
+                            type="text" 
+                            placeholder="Cari pesan, kontak..." 
+                            class="w-full px-4 py-2 pl-10 bg-gray-100 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+                        >
+                        <i class="fas fa-search absolute left-3 top-3 text-gray-400"></i>
+                    </div>
+                </div>
+            </div>
+        </header>
+        
+        <!-- Konten Utama -->
+        <main class="flex flex-1 overflow-hidden">
+            <!-- Sidebar Kontak -->
+            <aside class="contacts-sidebar w-full md:w-80 bg-surface border-r border-gray-200 flex flex-col md:static md:block">
+                <!-- Header Sidebar -->
+                <div class="p-4 border-b border-gray-200">
+                    <div class="flex items-center justify-between">
+                        <h2 class="text-lg font-semibold text-text">Percakapan</h2>
+                        <button class="text-primary hover:text-primary-dark" id="newChatBtn">
+                            <i class="fas fa-edit"></i>
+                        </button>
+                    </div>
+                    
+                    <!-- Filter Chat -->
+                    <div class="flex space-x-2 mt-4">
+                        <button class="px-3 py-1 bg-primary text-white rounded-full text-sm font-medium">Semua</button>
+                        <button class="px-3 py-1 bg-gray-100 text-text-light hover:bg-gray-200 rounded-full text-sm font-medium">Belum Dibaca</button>
+                        <button class="px-3 py-1 bg-gray-100 text-text-light hover:bg-gray-200 rounded-full text-sm font-medium">Grup</button>
+                    </div>
+                </div>
+                
+                <!-- Daftar Kontak -->
+                <div class="flex-1 overflow-y-auto scrollbar-thin" id="contactsList">
+                    <!-- Kontak akan diisi oleh JavaScript -->
+                </div>
+                
+                <!-- Footer Sidebar -->
+                <div class="p-4 border-t border-gray-200">
+                    <div class="flex items-center justify-between">
+                        <div class="flex items-center space-x-3">
+                            <div class="relative">
+                                <img 
+                                    src="https://i.pravatar.cc/40?img=1" 
+                                    alt="Profil pengguna" 
+                                    class="w-10 h-10 rounded-full"
+                                >
+                                <div class="online-status online"></div>
+                            </div>
+                            <div>
+                                <p class="font-medium text-text">Budi Santoso</p>
+                                <p class="text-xs text-text-light">Online</p>
+                            </div>
+                        </div>
+                        <button class="text-text-light hover:text-primary" id="sidebarSettingsBtn">
+                            <i class="fas fa-ellipsis-v"></i>
+                        </button>
+                    </div>
+                </div>
+            </aside>
+            
+            <!-- Area Chat -->
+            <div class="flex-1 flex flex-col">
+                <!-- Header Chat -->
+                <div class="bg-surface border-b border-gray-200 p-4">
+                    <div class="flex items-center justify-between">
+                        <div class="flex items-center space-x-3">
+                            <button class="md:hidden text-text-light hover:text-primary" id="backToContacts">
+                                <i class="fas fa-arrow-left"></i>
+                            </button>
+                            <div class="group-avatar">
+                                <img src="https://i.pravatar.cc/32?img=10" alt="Anggota 1">
+                                <img src="https://i.pravatar.cc/32?img=11" alt="Anggota 2">
+                                <img src="https://i.pravatar.cc/32?img=12" alt="Anggota 3">
+                            </div>
+                            <div>
+                                <h2 class="font-semibold text-text" id="currentChatName">Grup VedaNova Biravarta</h2>
+                                <p class="text-sm text-text-light" id="currentChatStatus">12 anggota • 5 online</p>
+                            </div>
+                        </div>
+                        <div class="flex items-center space-x-4">
+                            <button class="text-text-light hover:text-primary">
+                                <i class="fas fa-phone-alt"></i>
+                            </button>
+                            <button class="text-text-light hover:text-primary">
+                                <i class="fas fa-video"></i>
+                            </button>
+                            <button class="text-text-light hover:text-primary" id="chatInfoBtn">
+                                <i class="fas fa-info-circle"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Kontainer Pesan -->
+                <div class="flex-1 overflow-y-auto p-4 bg-gray-50 chat-container scrollbar-thin" id="messagesContainer">
+                    <!-- Pesan akan diisi oleh JavaScript -->
+                </div>
+                
+                <!-- Indikator Mengetik -->
+                <div class="px-4 py-2 hidden" id="typingIndicator">
+                    <div class="flex items-center space-x-2">
+                        <div class="relative">
+                            <img 
+                                src="https://i.pravatar.cc/32?img=10" 
+                                alt="Pengguna sedang mengetik" 
+                                class="w-8 h-8 rounded-full"
+                            >
+                        </div>
+                        <div class="bg-gray-200 rounded-2xl rounded-tl-none px-4 py-2">
+                            <div class="typing-indicator">
+                                <span></span>
+                                <span></span>
+                                <span></span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Input Pesan -->
+                <div class="bg-surface border-t border-gray-200 p-4">
+                    <div class="flex items-center space-x-3">
+                        <button class="text-text-light hover:text-primary">
+                            <i class="fas fa-plus-circle text-xl"></i>
+                        </button>
+                        <button class="text-text-light hover:text-primary">
+                            <i class="fas fa-image text-xl"></i>
+                        </button>
+                        <button class="text-text-light hover:text-primary">
+                            <i class="fas fa-paperclip text-xl"></i>
+                        </button>
+                        
+                        <div class="flex-1 relative">
+                            <input 
+                                type="text" 
+                                placeholder="Ketik pesan..." 
+                                class="w-full px-4 py-3 bg-gray-100 rounded-full border border-gray-300 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+                                id="messageInput"
+                            >
+                            <button class="absolute right-3 top-3 text-text-light hover:text-primary">
+                                <i class="far fa-smile text-xl"></i>
+                            </button>
+                        </div>
+                        
+                        <button class="bg-primary hover:bg-primary-dark text-white rounded-full w-10 h-10 flex items-center justify-center" id="sendMessageBtn">
+                            <i class="fas fa-paper-plane"></i>
+                        </button>
+                    </div>
+                    
+                    <!-- Aksi Cepat -->
+                    <div class="flex items-center justify-between mt-3 text-xs text-text-light">
+                        <div class="flex space-x-4">
+                            <button class="hover:text-primary">
+                                <i class="fas fa-microphone mr-1"></i>
+                                Pesan Suara
+                            </button>
+                            <button class="hover:text-primary">
+                                <i class="fas fa-map-marker-alt mr-1"></i>
+                                Lokasi
+                            </button>
+                        </div>
+                        <div>
+                            <span>Tekan Enter untuk mengirim</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Sidebar Info Chat (Tersembunyi di mobile secara default) -->
+            <aside class="hidden lg:block w-80 bg-surface border-l border-gray-200" id="chatInfoSidebar">
+                <div class="p-4 border-b border-gray-200">
+                    <div class="flex items-center justify-between">
+                        <h3 class="font-semibold text-text">Info Grup</h3>
+                        <button class="text-text-light hover:text-primary" id="closeChatInfo">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
+                </div>
+                
+                <div class="p-4">
+                    <!-- Info Grup -->
+                    <div class="text-center mb-6">
+                        <div class="group-avatar mx-auto mb-3" style="width: 80px; height: 80px;">
+                            <img src="https://i.pravatar.cc/40?img=10" alt="Anggota 1" style="width: 48px; height: 48px;">
+                            <img src="https://i.pravatar.cc/40?img=11" alt="Anggota 2" style="width: 48px; height: 48px;">
+                            <img src="https://i.pravatar.cc/40?img=12" alt="Anggota 3" style="width: 48px; height: 48px;">
+                        </div>
+                        <h4 class="font-semibold text-text text-lg">Grup VedaNova Biravarta</h4>
+                        <p class="text-text-light text-sm">Komunitas Teknologi & Inovasi</p>
+                        <div class="flex items-center justify-center mt-2">
+                            <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                                <span class="w-2 h-2 bg-green-500 rounded-full mr-1"></span>
+                                Aktif
+                            </span>
+                        </div>
+                    </div>
+                    
+                    <!-- Anggota Grup -->
+                    <div class="mb-6">
+                        <h5 class="font-medium text-text mb-3">Anggota (12)</h5>
+                        <div class="space-y-3">
+                            <div class="flex items-center justify-between">
+                                <div class="flex items-center">
+                                    <div class="relative mr-3">
+                                        <img src="https://i.pravatar.cc/32?img=1" alt="adnan" class="w-8 h-8 rounded-full">
+                                        <div class="online-status online"></div>
+                                    </div>
+                                    <div>
+                                        <p class="text-sm font-medium text-text">adnan</p>
+                                        <p class="text-xs text-text-light">Anda</p>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="flex items-center justify-between">
+                                <div class="flex items-center">
+                                    <div class="relative mr-3">
+                                        <img src="https://i.pravatar.cc/32?img=2" alt="Siti Rahayu" class="w-8 h-8 rounded-full">
+                                        <div class="online-status online"></div>
+                                    </div>
+                                    <p class="text-sm font-medium text-text">via</p>
+                                </div>
+                                <span class="text-xs text-primary font-medium">Admin</span>
+                            </div>
+                            <div class="flex items-center justify-between">
+                                <div class="flex items-center">
+                                    <div class="relative mr-3">
+                                        <img src="https://i.pravatar.cc/32?img=3" alt="adjie" class="w-8 h-8 rounded-full">
+                                        <div class="online-status away"></div>
+                                    </div>
+                                    <p class="text-sm font-medium text-text">adjie</p>
+                                </div>
+                            </div>
+                            <div class="flex items-center justify-between">
+                                <div class="flex items-center">
+                                    <div class="relative mr-3">
+                                        <img src="https://i.pravatar.cc/32?img=4" alt="marza tj" class="w-8 h-8 rounded-full">
+                                        <div class="online-status online"></div>
+                                    </div>
+                                    <p class="text-sm font-medium text-text">marza tj</p>
+                                </div>
+                            </div>
+                            <div class="text-center">
+                                <button class="text-primary text-sm font-medium">Lihat semua anggota</button>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Media, File, Tautan -->
+                    <div class="space-y-4">
+                        <div>
+                            <h5 class="font-medium text-text mb-2">Media, File & Tautan</h5>
+                            <div class="grid grid-cols-3 gap-2">
+                                <img src="https://i.pravatar.cc/80?img=20" alt="Media 1" class="rounded-lg">
+                                <img src="https://i.pravatar.cc/80?img=21" alt="Media 2" class="rounded-lg">
+                                <img src="https://i.pravatar.cc/80?img=22" alt="Media 3" class="rounded-lg">
+                                <div class="bg-gray-100 rounded-lg flex items-center justify-center h-20">
+                                    <span class="text-text-light">+24 lebih</span>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Pengaturan Grup -->
+                        <div>
+                            <h5 class="font-medium text-text mb-2">Pengaturan Grup</h5>
+                            <div class="space-y-2">
+                                <button class="flex items-center justify-between w-full p-2 hover:bg-gray-50 rounded-lg">
+                                    <div class="flex items-center">
+                                        <i class="fas fa-bell text-text-light mr-3"></i>
+                                        <span class="text-text">Notifikasi Grup</span>
+                                    </div>
+                                    <i class="fas fa-chevron-right text-text-light"></i>
+                                </button>
+                                <button class="flex items-center justify-between w-full p-2 hover:bg-gray-50 rounded-lg">
+                                    <div class="flex items-center">
+                                        <i class="fas fa-user-plus text-text-light mr-3"></i>
+                                        <span class="text-text">Undang Anggota</span>
+                                    </div>
+                                    <i class="fas fa-chevron-right text-text-light"></i>
+                                </button>
+                                <button class="flex items-center justify-between w-full p-2 hover:bg-gray-50 rounded-lg">
+                                    <div class="flex items-center">
+                                        <i class="fas fa-search text-text-light mr-3"></i>
+                                        <span class="text-text">Cari dalam Chat</span>
+                                    </div>
+                                    <i class="fas fa-chevron-right text-text-light"></i>
+                                </button>
+                                <button class="flex items-center justify-between w-full p-2 hover:bg-gray-50 rounded-lg text-red-600">
+                                    <div class="flex items-center">
+                                        <i class="fas fa-trash-alt mr-3"></i>
+                                        <span>Hapus Riwayat Chat</span>
+                                    </div>
+                                    <i class="fas fa-chevron-right"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </aside>
+        </main>
+        
+        <!-- Modal Chat Baru -->
+        <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center hidden z-50" id="newChatModal">
+            <div class="bg-surface rounded-lg shadow-xl w-full max-w-md mx-4">
+                <div class="p-6">
+                    <h3 class="text-lg font-semibold text-text mb-4">Chat Baru</h3>
+                    <div class="mb-4">
+                        <input 
+                            type="text" 
+                            placeholder="Cari kontak..." 
+                            class="w-full px-4 py-2 bg-gray-100 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+                            id="newChatSearch"
+                        >
+                    </div>
+                    <div class="max-h-64 overflow-y-auto mb-4">
+                        <!-- Daftar kontak untuk chat baru akan diisi oleh JS -->
+                    </div>
+                    <div class="flex justify-end space-x-3">
+                        <button class="px-4 py-2 text-text-light hover:text-text" id="cancelNewChat">
+                            Batal
+                        </button>
+                        <button class="px-4 py-2 bg-primary hover:bg-primary-dark text-white rounded-lg" id="startNewChat">
+                            Mulai Chat
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        // Data kontak dengan Grup VedaNova Biravarta
+        const contacts = [
+            {
+                "id": 1,
+                "name": "VedaNova Biravarta",
+                "group_avatar": "https://i.pravatar.cc/150?img=54",
+                "lastMessage": "wo tau",
+                "timestamp": "10:30",
+                "unreadCount": 5,
+                "status": "group",
+                "isTyping": true,
+                "isGroup": true,
+                "members": 32,
+                "isVedaNova": true
+            },
+            {
+                "id": 2,
+                "name": "imam choirie",
+                "avatar": "https://i.pravatar.cc/40?img=2",
+                "lastMessage":"oy",
+                "timestamp": "Kemarin",
+                "unreadCount": 0,
+                "status": "online",
+                "isTyping": false
+            },
+            {
+                "id": 3,
+                "name": "adjie",
+                "avatar": "https://i.pravatar.cc/40?img=60",
+                "lastMessage": "p mtkn",
+                "timestamp": "2 hari lalu",
+                "unreadCount": 1,
+                "status": "away",
+                "isTyping": false
+            },
+            {
+                "id": 4,
+                "name": "kimia elektrolit",
+                "avatar": "",
+                "lastMessage":"lema mo perso o mtkn sama",
+                "timestamp": "3 hari lalu",
+                "unreadCount": 0,
+                "status": "group",
+                "isTyping": false,
+                "isGroup": true,
+                "members": 5
+            },
+            {
+                "id": 5,
+                "name": "Husain",
+                "avatar": "https://i.pravatar.cc/40?img=11",
+                "lastMessage": "Bedange ke nar",
+                "timestamp": "Hari ini",
+                "unreadCount": 0,
+                "status": "offline",
+                "isTyping": false
+            },
+            {
+                "id": 6,
+                "name": "ledies",
+                "avatar": "https://i.pravatar.cc/40?img=40",
+                "lastMessage": "keluar nanti malam sayang",
+                "timestamp": "Hari Ini",
+                "unreadCount": 0,
+                "status": "online",
+                "isTyping": false
+            },
+            {
+                "id": 7,
+                "name": "TIM SER",
+                "avatar": "",
+                "lastMessage": "marza: inpo mu inpo ku",
+                "timestamp": "2 jam yang lalu",
+                "unreadCount": 15,
+                "status": "group",
+                "isTyping": false,
+                "isGroup": true,
+                "members": 7,
+            }
+        ];
+
+        // Data pesan untuk Grup VedaNova Biravarta
+        const messages = [
+            {
+                "id": 1,
+                "contactId": 1,
+                "sender": "adjie",
+                "avatar": "https://i.pravatar.cc/32?img=14",
+                "content": "apa gawe grub",
+                "timestamp": "08:30",
+                "isOwn": false,
+                "status": "read"
+            },
+            {
+                "id": 2,
+                "contactId": 1,
+                "sender": "marza",
+                "avatar": "https://i.pravatar.cc/32?img=3",
+                "content": "woy tau",
+                "timestamp": "08:32",
+                "isOwn": false,
+                "status": "read"
+            },
+            {
+                "id": 3,
+                "contactId": 1,
+                "sender": "Anda",
+                "avatar": "https://i.pravatar.cc/32?img=1",
+                "content": "meluk tu",
+                "timestamp": "08:35",
+                "isOwn": true,
+                "status": "read"
+            },
+            {
+                "id": 4,
+                "contactId": 1,
+                "sender": "faiz",
+                "avatar": "https://i.pravatar.cc/32?img=4",
+                "content": "jadi ke pante sak",
+                "timestamp": "08:40",
+                "isOwn": false,
+                "status": "read"
+            },
+            {
+                "id": 5,
+                "contactId": 1,
+                "sender": "via",
+                "avatar": "https://i.pravatar.cc/32?img=15",
+                "content": "jadi best",
+                "timestamp": "08:42",
+                "isOwn": false,
+                "status": "read"
+            },
+            {
+                "id": 6,
+                "contactId": 1,
+                "sender": "anda",
+                "avatar": "https://i.pravatar.cc/32?img=1",
+                "content": "jam pia tu alo sak",
+                "timestamp": "08:45",
+                "isOwn": true,
+                "status": "read"
+            },
+            {
+                "id": 7,
+                "contactId": 1,
+                "sender": "adjie",
+                "avatar": "https://i.pravatar.cc/32?img=14",
+                "content": "jam 9 jadi ti tu alo",
+                "timestamp": "09:00",
+                "isOwn": false,
+                "status": "read"
+            },
+            {
+                "id": 8,
+                "contactId": 1,
+                "sender": "Anda",
+                "avatar": "https://i.pravatar.cc/32?img=1",
+                "content": "yam ba me seda anu len sa",
+                "timestamp": "10:00",
+                "isOwn": true,
+                "status": "delivered"
+            }
+        ];
+
+        // Notifikasi dalam bahasa Indonesia
+        const notifications = [
+            {
+                "id": 1,
+                "title": "Pesan Grup",
+                "message": "Grup VedaNova Biravarta: 8 pesan baru",
+                "time": "2 menit lalu",
+                "read": false,
+                "type": "group"
+            },
+            {
+                "id": 2,
+                "title": "Anggota Baru",
+                "message": "Rina bergabung dengan Grup VedaNova Biravarta",
+                "time": "1 jam lalu",
+                "read": false,
+                "type": "group"
+            },
+            {
+                "id": 3,
+                "title": "Panggilan Grup",
+                "message": "Missed call dari Grup VedaNova Biravarta",
+                "time": "3 jam lalu",
+                "read": true,
+                "type": "call"
+            },
+            {
+                "id": 4,
+                "title": "File Diterima",
+                "message": "Agus membagikan dokumen di Grup VedaNova",
+                "time": "Kemarin",
+                "read": true,
+                "type": "file"
+            }
+        ];
+
+        // State saat ini
+        let currentChatId = 1;
+        let currentUser = {
+            "id": 0,
+            "name": "Budi Santoso",
+            "avatar": "https://i.pravatar.cc/32?img=1",
+            "status": "online"
+        };
+
+        // Elemen DOM
+        const contactsList = document.getElementById('contactsList');
+        const messagesContainer = document.getElementById('messagesContainer');
+        const messageInput = document.getElementById('messageInput');
+        const sendMessageBtn = document.getElementById('sendMessageBtn');
+        const searchInput = document.getElementById('searchInput');
+        const notificationsBtn = document.getElementById('notificationsBtn');
+        const notificationsDropdown = document.getElementById('notificationsDropdown');
+        const profileBtn = document.getElementById('profileBtn');
+        const profileDropdown = document.getElementById('profileDropdown');
+        const menuToggle = document.getElementById('menuToggle');
+        const contactsSidebar = document.querySelector('.contacts-sidebar');
+        const overlay = document.getElementById('overlay');
+        const backToContacts = document.getElementById('backToContacts');
+        const chatInfoBtn = document.getElementById('chatInfoBtn');
+        const chatInfoSidebar = document.getElementById('chatInfoSidebar');
+        const closeChatInfo = document.getElementById('closeChatInfo');
+        const newChatBtn = document.getElementById('newChatBtn');
+        const newChatModal = document.getElementById('newChatModal');
+        const cancelNewChat = document.getElementById('cancelNewChat');
+        const startNewChat = document.getElementById('startNewChat');
+        const newChatSearch = document.getElementById('newChatSearch');
+        const mobileSearchBtn = document.getElementById('mobileSearchBtn');
+        const mobileSearchBar = document.getElementById('mobileSearchBar');
+        const typingIndicator = document.getElementById('typingIndicator');
+        const currentChatName = document.getElementById('currentChatName');
+        const currentChatStatus = document.getElementById('currentChatStatus');
+
+        // Inisialisasi aplikasi
+        function initApp() {
+            renderContacts();
+            renderMessages(currentChatId);
+            renderNotifications();
+            setupEventListeners();
+            updateCurrentChatInfo();
+        }
+
+        // Render daftar kontak
+        function renderContacts(filter = '') {
+            contactsList.innerHTML = '';
+            
+            const filteredContacts = contacts.filter(contact => 
+                contact.name.toLowerCase().includes(filter.toLowerCase())
+            );
+            
+            filteredContacts.forEach(contact => {
+                const contactElement = document.createElement('div');
+                contactElement.className = `p-4 border-b border-gray-100 hover:bg-gray-50 cursor-pointer transition-colors ${contact.id === currentChatId ? 'bg-blue-50' : ''}`;
+                contactElement.dataset.contactId = contact.id;
+                
+                const statusClass = contact.status === 'online' ? 'online' : 
+                                  contact.status === 'away' ? 'away' : 'offline';
+                
+                // Untuk grup VedaNova, tampilkan avatar khusus
+                let avatarHTML = '';
+                if (contact.isVedaNova) {
+                    avatarHTML = `
+                        <div class="group-avatar" style="width: 48px; height: 48px;">
+                            <img src="https://i.pravatar.cc/32?img=10" alt="Anggota 1">
+                            <img src="https://i.pravatar.cc/32?img=11" alt="Anggota 2">
+                            <img src="https://i.pravatar.cc/32?img=12" alt="Anggota 3">
+                        </div>
+                    `;
+                } else if (contact.isGroup) {
+                    avatarHTML = `
+                        <div class="relative">
+                            <div class="w-12 h-12 rounded-full bg-gradient-to-r from-primary to-accent flex items-center justify-center">
+                                <i class="fas fa-users text-white"></i>
+                            </div>
+                        </div>
+                    `;
+                } else {
+                    avatarHTML = `
+                        <div class="relative">
+                            <img src="${contact.avatar}" alt="${contact.name}" class="w-12 h-12 rounded-full">
+                            <div class="online-status ${statusClass}"></div>
+                        </div>
+                    `;
+                }
+                
+                contactElement.innerHTML = `
+                    <div class="flex items-center space-x-3">
+                        ${avatarHTML}
+                        <div class="flex-1 min-w-0">
+                            <div class="flex justify-between items-start">
+                                <h4 class="font-medium text-text truncate">${contact.name}</h4>
+                                <span class="text-xs text-text-light whitespace-nowrap">${contact.timestamp}</span>
+                            </div>
+                            <div class="flex justify-between items-center mt-1">
+                                <p class="text-sm text-text-light truncate">
+                                    ${contact.isTyping ? 
+                                        '<span class="text-primary font-medium"><i class="fas fa-circle text-xs mr-1"></i>Sedang mengetik...</span>' : 
+                                        contact.lastMessage}
+                                </p>
+                                ${contact.unreadCount > 0 ? `
+                                    <span class="bg-primary text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">
+                                        ${contact.unreadCount}
+                                    </span>
+                                ` : ''}
+                            </div>
+                            ${contact.isGroup ? `
+                                <div class="flex items-center mt-1">
+                                    <span class="text-xs text-text-light">
+                                        <i class="fas fa-users mr-1"></i>${contact.members} anggota
+                                    </span>
+                                </div>
+                            ` : ''}
+                        </div>
+                    </div>
+                `;
+                
+                contactElement.addEventListener('click', () => {
+                    currentChatId = contact.id;
+                    renderContacts();
+                    renderMessages(currentChatId);
+                    updateCurrentChatInfo();
+                    
+                    // Di mobile, sembunyikan sidebar kontak saat chat dipilih
+                    if (window.innerWidth < 768) {
+                        contactsSidebar.classList.remove('active');
+                        overlay.classList.remove('active');
+                    }
+                });
+                
+                contactsList.appendChild(contactElement);
+            });
+        }
+
+        // Render pesan untuk chat tertentu
+        function renderMessages(contactId) {
+            messagesContainer.innerHTML = '';
+            
+            const chatMessages = messages.filter(msg => msg.contactId === contactId);
+            
+            chatMessages.forEach(message => {
+                const messageElement = document.createElement('div');
+                messageElement.className = `flex ${message.isOwn ? 'justify-end' : 'justify-start'} mb-4 animate-fade-in`;
+                
+                if (!message.isOwn) {
+                    messageElement.innerHTML = `
+                        <div class="flex items-end space-x-2 max-w-full">
+                            <img 
+                                src="${message.avatar}" 
+                                alt="${message.sender}" 
+                                class="w-8 h-8 rounded-full flex-shrink-0"
+                            >
+                            <div class="message-bubble bg-white border border-gray-200 rounded-2xl rounded-tl-none px-4 py-2">
+                                <p class="text-sm font-medium text-text mb-1">${message.sender}</p>
+                                <p class="text-text">${message.content}</p>
+                                <div class="flex justify-end items-center mt-1">
+                                    <span class="text-xs text-text-light">${message.timestamp}</span>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                } else {
+                    const statusIcon = message.status === 'sent' ? 'fa-check' : 
+                                     message.status === 'delivered' ? 'fa-check-double' : 
+                                     'fa-check-double text-blue-500';
+                    
+                    messageElement.innerHTML = `
+                        <div class="flex items-end space-x-2 max-w-full">
+                            <div class="message-bubble bg-primary text-white rounded-2xl rounded-br-none px-4 py-2">
+                                <p>${message.content}</p>
+                                <div class="flex justify-end items-center mt-1">
+                                    <span class="text-xs opacity-80">${message.timestamp}</span>
+                                    <i class="fas ${statusIcon} text-xs ml-1"></i>
+                                </div>
+                            </div>
+                            <img 
+                                src="${message.avatar}" 
+                                alt="${message.sender}" 
+                                class="w-8 h-8 rounded-full flex-shrink-0"
+                            >
+                        </div>
+                    `;
+                }
+                
+                messagesContainer.appendChild(messageElement);
+            });
+            
+            // Scroll ke bawah
+            messagesContainer.scrollTop = messagesContainer.scrollHeight;
+            
+            // Tampilkan/sembunyikan indikator mengetik
+            const currentContact = contacts.find(c => c.id === contactId);
+            if (currentContact && currentContact.isTyping) {
+                typingIndicator.classList.remove('hidden');
+            } else {
+                typingIndicator.classList.add('hidden');
+            }
+        }
+
+        // Render notifikasi
+        function renderNotifications() {
+            const notificationsContainer = notificationsDropdown.querySelector('.max-h-64');
+            notificationsContainer.innerHTML = '';
+            
+            notifications.forEach(notification => {
+                const notificationElement = document.createElement('div');
+                notificationElement.className = `p-4 border-b border-gray-100 hover:bg-gray-50 cursor-pointer ${!notification.read ? 'bg-blue-50' : ''}`;
+                
+                const icon = notification.type === 'message' ? 'fa-comment-alt' :
+                            notification.type === 'group' ? 'fa-users' :
+                            notification.type === 'call' ? 'fa-phone' : 'fa-file';
+                
+                notificationElement.innerHTML = `
+                    <div class="flex items-start space-x-3">
+                        <div class="w-10 h-10 rounded-full bg-primary bg-opacity-10 flex items-center justify-center flex-shrink-0">
+                            <i class="fas ${icon} text-primary"></i>
+                        </div>
+                        <div class="flex-1 min-w-0">
+                            <h5 class="font-medium text-text">${notification.title}</h5>
+                            <p class="text-sm text-text-light mt-1">${notification.message}</p>
+                            <span class="text-xs text-text-light mt-1 block">${notification.time}</span>
+                        </div>
+                        ${!notification.read ? 
+                            '<div class="w-2 h-2 bg-primary rounded-full flex-shrink-0 mt-2"></div>' : 
+                            ''
+                        }
+                    </div>
+                `;
+                
+                notificationsContainer.appendChild(notificationElement);
+            });
+        }
+
+        // Update info chat saat ini di header
+        function updateCurrentChatInfo() {
+            const currentContact = contacts.find(c => c.id === currentChatId);
+            if (currentContact) {
+                currentChatName.textContent = currentContact.name;
+                
+                if (currentContact.isGroup) {
+                    currentChatStatus.textContent = `${currentContact.members} anggota • ${currentContact.status === 'online' ? '5 online' : 'Terakhir aktif hari ini'}`;
+                } else {
+                    const statusText = currentContact.status === 'online' ? 'Online' :
+                                     currentContact.status === 'away' ? 'Away' : 'Offline';
+                    currentChatStatus.textContent = `${statusText} • Terakhir dilihat 2 menit lalu`;
+                }
+            }
+        }
+
+        // Kirim pesan baru
+        function sendMessage() {
+            const content = messageInput.value.trim();
+            if (!content) return;
+            
+            const newMessage = {
+                id: messages.length + 1,
+                contactId: currentChatId,
+                sender: "Anda",
+                avatar: currentUser.avatar,
+                content: content,
+                timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+                isOwn: true,
+                status: 'sent'
+            };
+            
+            messages.push(newMessage);
+            renderMessages(currentChatId);
+            messageInput.value = '';
+            
+            // Simulasikan balasan dari anggota grup setelah 1-3 detik
+            setTimeout(() => {
+                const currentContact = contacts.find(c => c.id === currentChatId);
+                if (currentContact && currentContact.isGroup) {
+                    const groupMembers = [
+                        { name: "marza tj", avatar: "https://i.pravatar.cc/32?img=13" },
+                        { name: "Jizat", avatar: "https://i.pravatar.cc/32?img=8" },
+                        { name: "Adjie", avatar: "https://i.pravatar.cc/32?img=14" }
+                    ];
+                    
+                    const randomMember = groupMembers[Math.floor(Math.random() * groupMembers.length)];
+                    const replies = [
+                        "lok pr ke nar",
+                        "gas pak",
+                        "info ku info mu",
+                        "LIBUR KE NAR!!!",
+                        "jari ke",
+                    ];
+                    
+                    const randomReply = replies[Math.floor(Math.random() * replies.length)];
+                    
+                    const replyMessage = {
+                        id: messages.length + 1,
+                        contactId: currentChatId,
+                        sender: randomMember.name,
+                        avatar: randomMember.avatar,
+                        content: randomReply,
+                        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+                        isOwn: false,
+                        status: 'read'
+                    };
+                    messages.push(replyMessage);
+                    renderMessages(currentChatId);
+                }
+            }, 1000 + Math.random() * 2000);
+            
+            // Update pesan terakhir di kontak
+            const contactIndex = contacts.findIndex(c => c.id === currentChatId);
+            if (contactIndex !== -1) {
+                contacts[contactIndex].lastMessage = `Budi: ${content.substring(0, 30)}${content.length > 30 ? '...' : ''}`;
+                contacts[contactIndex].timestamp = "Baru saja";
+                contacts[contactIndex].unreadCount = 0;
+                renderContacts();
+            }
+        }
+
+        // Setup event listener
+        function setupEventListeners() {
+            // Kirim pesan saat tombol diklik
+            sendMessageBtn.addEventListener('click', sendMessage);
+            
+            // Kirim pesan saat tombol Enter (tapi Shift+Enter untuk baris baru)
+            messageInput.addEventListener('keypress', (e) => {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    sendMessage();
+                }
+            });
+            
+            // Cari kontak
+            searchInput.addEventListener('input', (e) => {
+                renderContacts(e.target.value);
+            });
+            
+            // Toggle dropdown notifikasi
+            notificationsBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                notificationsDropdown.classList.toggle('hidden');
+                profileDropdown.classList.add('hidden');
+            });
+            
+            // Toggle dropdown profil
+            profileBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                profileDropdown.classList.toggle('hidden');
+                notificationsDropdown.classList.add('hidden');
+            });
+            
+            // Tutup dropdown saat klik di luar
+            document.addEventListener('click', () => {
+                notificationsDropdown.classList.add('hidden');
+                profileDropdown.classList.add('hidden');
+            });
+            
+            // Toggle menu mobile
+            menuToggle.addEventListener('click', () => {
+                contactsSidebar.classList.add('active');
+                overlay.classList.add('active');
+            });
+            
+            // Klik overlay untuk tutup sidebar
+            overlay.addEventListener('click', () => {
+                contactsSidebar.classList.remove('active');
+                overlay.classList.remove('active');
+            });
+            
+            // Kembali ke kontak di mobile
+            backToContacts.addEventListener('click', () => {
+                contactsSidebar.classList.add('active');
+                overlay.classList.add('active');
+            });
+            
+            // Toggle sidebar info chat
+            chatInfoBtn.addEventListener('click', () => {
+                chatInfoSidebar.classList.toggle('hidden');
+            });
+            
+            closeChatInfo.addEventListener('click', () => {
+                chatInfoSidebar.classList.add('hidden');
+            });
+            
+            // Modal chat baru
+            newChatBtn.addEventListener('click', () => {
+                newChatModal.classList.remove('hidden');
+                renderNewChatContacts();
+            });
+            
+            cancelNewChat.addEventListener('click', () => {
+                newChatModal.classList.add('hidden');
+            });
+            
+            startNewChat.addEventListener('click', () => {
+                // Di aplikasi nyata, ini akan mulai chat baru
+                alert('Memulai chat baru...');
+                newChatModal.classList.add('hidden');
+            });
+            
+            // Cari di modal chat baru
+            newChatSearch.addEventListener('input', (e) => {
+                renderNewChatContacts(e.target.value);
+            });
+            
+            // Toggle pencarian mobile
+            mobileSearchBtn.addEventListener('click', () => {
+                mobileSearchBar.classList.toggle('hidden');
+            });
+            
+            // Tutup modal saat klik di luar
+            newChatModal.addEventListener('click', (e) => {
+                if (e.target === newChatModal) {
+                    newChatModal.classList.add('hidden');
+                }
+            });
+            
+            // Simulasikan indikator mengetik di grup VedaNova
+            setInterval(() => {
+                const vedaNovaGroup = contacts.find(c => c.isVedaNova);
+                if (vedaNovaGroup && Math.random() > 0.7) {
+                    vedaNovaGroup.isTyping = true;
+                    renderContacts();
+                    
+                    setTimeout(() => {
+                        vedaNovaGroup.isTyping = false;
+                        renderContacts();
+                        
+                        // Tambahkan pesan otomatis dari anggota grup
+                        const groupMembers = [
+                            { name: "Siti Rahayu", avatar: "https://i.pravatar.cc/32?img=2" },
+                            { name: "Agus Wijaya", avatar: "https://i.pravatar.cc/32?img=3" }
+                        ];
+                        
+                        const randomMember = groupMembers[Math.floor(Math.random() * groupMembers.length)];
+                        const autoMessages = [
+                            "Ada yang sudah coba fitur baru di dashboard?",
+                            "Meeting besok masih jam 10 ya?",
+                            "Progress proyek Biravarta sudah 75%!",
+                            "Upload laporan mingguan di folder shared ya!"
+                        ];
+                        
+                        const randomMessage = autoMessages[Math.floor(Math.random() * autoMessages.length)];
+                        
+                        const newAutoMessage = {
+                            id: messages.length + 1,
+                            contactId: vedaNovaGroup.id,
+                            sender: randomMember.name,
+                            avatar: randomMember.avatar,
+                            content: randomMessage,
+                            timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+                            isOwn: false,
+                            status: 'read'
+                        };
+                        
+                        messages.push(newAutoMessage);
+                        if (currentChatId === vedaNovaGroup.id) {
+                            renderMessages(currentChatId);
+                        }
+                        
+                        // Update last message
+                        vedaNovaGroup.lastMessage = `${randomMember.name.split(' ')[0]}: ${randomMessage.substring(0, 30)}${randomMessage.length > 30 ? '...' : ''}`;
+                        vedaNovaGroup.timestamp = "Baru saja";
+                        vedaNovaGroup.unreadCount++;
+                        renderContacts();
+                    }, 3000);
+                }
+            }, 15000);
+            
+            // Update status pesan (simulasi pengiriman dan dibaca)
+            setInterval(() => {
+                const ownMessages = messages.filter(msg => msg.isOwn && msg.status === 'sent');
+                if (ownMessages.length > 0) {
+                    const randomMessage = ownMessages[Math.floor(Math.random() * ownMessages.length)];
+                    randomMessage.status = 'delivered';
+                    renderMessages(currentChatId);
+                    
+                    setTimeout(() => {
+                        randomMessage.status = 'read';
+                        renderMessages(currentChatId);
+                    }, 2000);
+                }
+            }, 5000);
+        }
+
+        // Render kontak untuk modal chat baru
+        function renderNewChatContacts(filter = '') {
+            const container = newChatModal.querySelector('.max-h-64');
+            container.innerHTML = '';
+            
+            const filteredContacts = contacts.filter(contact => 
+                contact.name.toLowerCase().includes(filter.toLowerCase())
+            );
+            
+            filteredContacts.forEach(contact => {
+                const contactElement = document.createElement('div');
+                contactElement.className = 'flex items-center p-3 hover:bg-gray-50 cursor-pointer rounded-lg';
+                
+                let avatarHTML = '';
+                if (contact.isGroup) {
+                    avatarHTML = `
+                        <div class="w-10 h-10 rounded-full bg-gradient-to-r from-primary to-accent flex items-center justify-center mr-3">
+                            <i class="fas fa-users text-white"></i>
+                        </div>
+                    `;
+                } else {
+                    avatarHTML = `
+                        <div class="relative mr-3">
+                            <img src="${contact.avatar}" alt="${contact.name}" class="w-10 h-10 rounded-full">
+                            <div class="online-status ${contact.status === 'online' ? 'online' : contact.status === 'away' ? 'away' : 'offline'}"></div>
+                        </div>
+                    `;
+                }
+                
+                contactElement.innerHTML = `
+                    ${avatarHTML}
+                    <div class="flex-1">
+                        <h4 class="font-medium text-text">${contact.name}</h4>
+                        <p class="text-sm text-text-light">${contact.isGroup ? `${contact.members} anggota` : contact.status === 'online' ? 'Online' : 'Terakhir dilihat baru saja'}</p>
+                    </div>
+                    <div class="ml-2">
+                        <input type="checkbox" class="rounded text-primary focus:ring-primary">
+                    </div>
+                `;
+                
+                container.appendChild(contactElement);
+            });
+        }
+
+        // Inisialisasi aplikasi saat DOM dimuat
+        document.addEventListener('DOMContentLoaded', initApp);
+    </script>
+</body>
+</html>
